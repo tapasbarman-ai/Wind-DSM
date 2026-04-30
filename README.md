@@ -38,3 +38,34 @@ Instead of predicting the standalone real power output from scratch, the PI-PML 
 *   **Total Savings Evaluated:** **₹ 23,53,972 (approx. 23.5 Lakhs)**
 *   **Projected Annual Rupee Savings for Plant Owner:** **₹ 1,41,23,833 (~1.41 Crores/Year)**
 *   **Accuracy Improvement:** Absolute error reduced by **71.2%**
+
+## 📂 Project Structure
+
+```text
+Wind-DSM/
+│
+├── src/                      # Core logic and modules
+│   ├── data_ingestion.py     # NOAA/Weather API integration
+│   ├── physics_engine.py     # Vestas V112 aerodynamic models
+│   ├── ml_pipeline.py        # XGBoost residual learning
+│   ├── spatial_processor.py  # Spatial downscaling
+│   ├── temporal_processor.py # 15-min block interpolation
+│   └── dsm_calculator.py     # CERC financial penalty logic
+│
+├── dags/                     # Airflow pipeline orchestration
+│   └── wind_dsm_live_pipeline.py
+│
+├── data/                     # Raw & processed data storage
+│   ├── 01_raw/
+│   ├── 02_physics_baseline/
+│   └── 03_ml_corrected/
+│
+├── models/                   # Saved XGBoost models & weights
+├── outputs/                  # Visualizations, charts, and CSV reports
+├── notebooks/                # Jupyter notebooks for EDA/experiments
+│
+├── main.py                   # Main local Python orchestrator script
+├── docker-compose.yml        # Airflow infrastructure configuration
+├── Dockerfile.airflow        # Airflow dependencies build file
+└── requirements.txt          # Python dependencies
+```

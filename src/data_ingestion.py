@@ -128,7 +128,7 @@ def fetch_data(lat: float, lon: float, forecast_hours=24) -> pd.DataFrame:
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         futures = {
             executor.submit(download_grib, h, date_str, cycle_str, lat, lon): h 
-            for h in range(forecast_hours)
+            for h in range(forecast_hours + 1)
         }
         
         for future in concurrent.futures.as_completed(futures):

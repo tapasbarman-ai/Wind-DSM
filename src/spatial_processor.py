@@ -6,25 +6,26 @@ from scipy.interpolate import RectBivariateSpline
 VON_KARMAN = 0.40
 STANDARD_Z0_COARSE = 0.03  # Typical coarse model surface roughness (e.g., standard grass/crops)
 KHAVDA_Z0_FINE = 0.001     # Salt marsh / highly reflective smooth flatland (Khavda)
+DECCAN_Z0_FINE = 0.05      # Roughness factor for Deccan Plateau hill terrain (Koppal)
 HUB_HEIGHT = 100.0         # Vestas V112 Hub Height
 
 def apply_surface_roughness_correction(wind_speed_coarse: pd.Series, 
                                        z0_coarse: float = STANDARD_Z0_COARSE, 
-                                       z0_fine: float = KHAVDA_Z0_FINE, 
+                                       z0_fine: float = DECCAN_Z0_FINE, 
                                        height: float = HUB_HEIGHT) -> pd.Series:
     """
     Applies the Logarithmic Wind Profile correction to downscale wind speed 
     based on local high-resolution surface roughness (z0).
     
     A 25km GFS model assumes an "average" roughness across a massive grid.
-    By mapping Khavda's specific 1km pixel roughness, we mechanically adjust 
+    By mapping Koppal's specific 1km pixel roughness, we mechanically adjust 
     the wind shear profile.
     
     Formula derives from relative friction velocity transformation.
     """
     # v_fine = v_coarse * (ln(z/z0_fine) / ln(z/z0_coarse))
-    # Khavda is very smooth (salt marsh), so it experiences less drag, 
-    # meaning wind speeds at hub height are often higher than a coarse model predicts.
+    # Deccan Plateau has hill terrain, so it experiences different drag, 
+    # meaning wind speeds at hub height are altered compared to a coarse model.
     
     correction_factor = np.log(height / z0_fine) / np.log(height / z0_coarse)
     wind_speed_fine = wind_speed_coarse * correction_factor
@@ -35,7 +36,7 @@ def apply_elevation_speedup_correction(wind_speed: pd.Series, dem_elevation: flo
     """
     Adjusts wind speed based on Digital Elevation Model (DEM) differences.
     Wind speeds up as it compresses over terrain variations (Hills/Ridges).
-    For flatlands like Khavda, this effect is minimal, but crucial for sites like Muppandal.
+    This is crucial for Deccan Plateau hill terrains like Koppal.
     """
     # Simplified fractional speed-up ratio based on elevation difference
     # A highly complex model would use WAsP (Wind Atlas Analysis and Application Program) algorithms.
@@ -64,7 +65,7 @@ def bilinear_spatial_downscale(target_lat: float, target_lon: float,
     downscaled_value = interpolator(target_lat, target_lon)[0, 0]
     return downscaled_value
 
-def downscale_dataframe(df: pd.DataFrame, target_lat: float = 23.82, target_lon: float = 69.72) -> pd.DataFrame:
+def downscale_dataframe(df: pd.DataFrame, target_lat: float = 15.34, target_lon: float = 76.15) -> pd.DataFrame:
     """
     Main orchestrator for 1km spatial downscaling.
     Applies rigorous micro-scale topographical corrections to standard historical data.
@@ -77,14 +78,18 @@ def downscale_dataframe(df: pd.DataFrame, target_lat: float = 23.82, target_lon:
     # we enforce the Micro-level Terrain Corrections:
     
     if 'wind_speed_100m' in df_downscaled.columns:
-        # Khavda has a highly smooth surface compared to average GFS blocks.
+        # Deccan Plateau has a specific roughness compared to average GFS blocks.
         df_downscaled['wind_speed_100m'] = apply_surface_roughness_correction(
             df_downscaled['wind_speed_100m'],
             z0_coarse=STANDARD_Z0_COARSE,
-            z0_fine=KHAVDA_Z0_FINE
+            z0_fine=DECCAN_Z0_FINE
         )
         
-    # We could also apply DEM elevation adjustments here if the site had complex terrain
-    # For Khavda (relatively flat salt marsh), elevation speedup is negligible.
+    # Apply DEM elevation adjustments for Deccan Plateau hill terrain
+    df_downscaled['wind_speed_100m'] = apply_elevation_speedup_correction(
+        df_downscaled['wind_speed_100m'], 
+        dem_elevation=600.0, # Typical Koppal elevation
+        reference_elevation=500.0 # Base terrain elevation
+    )
     
     return df_downscaled

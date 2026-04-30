@@ -12,3 +12,4 @@ retry-requests
 windpowerlib
 seaborn
 mlflow
+email-validator>=2.0

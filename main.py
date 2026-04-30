@@ -77,7 +77,7 @@ def generate_live_forecast(lat, lon):
     print(f"\n--- Generating Live Forecast for Lat: {lat}, Lon: {lon} ---")
     # 1. Get Live Data from NOAA NOMADS GFS Server
     try:
-        df = fetch_data(lat, lon, forecast_hours=12)
+        df = fetch_data(lat, lon, forecast_hours=24)
         if len(df) == 0:
             print("Failed to fetch live data (empty dataframe).")
             return
@@ -98,11 +98,11 @@ def generate_live_forecast(lat, lon):
     # 5. ML Correction
     df['final_forecast_mw'] = predict_with_xgb(df)
     
-    print("\nReal-time Operational Forecast (Next 5 Hours / 20 Blocks):")
+    print("\nReal-time Operational Forecast (Day-Ahead / 96 Blocks):")
     cols = ['time', 'wind_speed_100m', 'physics_mw', 'final_forecast_mw']
     if 'final_forecast_mw_q10' in df.columns:
         cols.extend(['final_forecast_mw_q10', 'final_forecast_mw_q90'])
-    print(df[cols].head(20))
+    print(df[cols].head(96))
 
 if __name__ == "__main__":
     print("========================================")
@@ -112,5 +112,5 @@ if __name__ == "__main__":
     # 1. Train model and evaluate financial impact on historical truth
     train_and_backtest()
     
-    # 2. Execute a live forecast hitting NOAA servers for the next 12 hours
+    # 2. Execute a live forecast hitting NOAA servers for the next 24 hours (96 blocks)
     generate_live_forecast(23.82, 69.72)
