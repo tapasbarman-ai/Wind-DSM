@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wind DSM | India Wind Power Mapping</title>
+    <meta name="description" content="Interactive map of major wind power fields and capacity in India for the Wind DSM Optimization project.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar glass-panel">
+            <header class="sidebar-header">
+                <h1>Wind DSM</h1>
+                <p class="subtitle">National Wind Infrastructure</p>
+            </header>
+
+            <section class="stats-section">
+                <h2>State-wise Capacity</h2>
+                <ul class="capacity-list" id="capacity-list">
+                    <!-- Populated by JS -->
+                </ul>
+            </section>
+
+            <section class="legend-section">
+                <h2>Ownership Categories</h2>
+                <ul class="legend-list">
+                    <li><span class="legend-color psu"></span> Public Sector (PSU)</li>
+                    <li><span class="legend-color ipp"></span> Major IPPs</li>
+                    <li><span class="legend-color oem"></span> OEM Developers</li>
+                    <li><span class="legend-color multi"></span> Multiple / Mega Park</li>
+                </ul>
+            </section>
+            
+            <div class="info-card">
+                <p>Visualization uses 5-10km buffer zones to represent the corridor land-use characteristic of wind farms in India.</p>
+            </div>
+        </aside>
+
+        <!-- Main Map Area -->
+        <main class="map-wrapper">
+            <div id="map" class="map-container"></div>
+            
+            <!-- Floating overlay for selected details -->
+            <div class="detail-overlay glass-panel hidden" id="detail-overlay">
+                <button class="close-btn" id="close-detail">&times;</button>
+                <div class="detail-content" id="detail-content">
+                    <!-- Populated by JS -->
+                </div>
+                
+                <!-- Command Center added dynamically in JS based on selection, but container here -->
+                <div id="command-center" class="command-center hidden">
+                    <div class="glass-divider"></div>
+                    <h4 class="section-title">AI Forecast Pipeline</h4>
+                    
+                    <div class="model-options">
+                        <label class="radio-label">
+                            <input type="radio" name="model_mode" value="pretrained" checked> Use Pre-Trained Model
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="model_mode" value="custom"> Upload Custom SCADA (Retrain)
+                        </label>
+                    </div>
+                    
+                    <div id="upload-zone" class="upload-zone hidden">
+                        <p class="micro-text">Required: CSV with 'time' and 'actual_mw' columns.</p>
+                        <input type="file" id="scada-file" accept=".csv" class="file-input">
+                    </div>
+                    
+                    <button id="run-pipeline-btn" class="glow-button">Execute Pipeline</button>
+                    
+                    <div id="loading-state" class="loading-state hidden">
+                        <p class="micro-text" id="loading-text">Initializing AI Pipeline...</p>
+                        <div class="progress-track"><div class="progress-fill"></div></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Results Dashboard Overlay -->
+            <div class="results-dashboard glass-panel hidden" id="results-dashboard">
+                <header class="results-header">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <h2 id="results-title">Pipeline Evaluation Report</h2>
+                        <span id="pipeline-badge" class="badge hidden" style="background: #10b981; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Operational</span>
+                    </div>
+                    <button class="close-btn" id="close-results">&times;</button>
+                </header>
+                <div class="results-content">
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <h4>Physics Baseline Penalty</h4>
+                            <div class="kpi-value text-danger" id="val-physics">₹ --</div>
+                        </div>
+                        <div class="kpi-card">
+                            <h4>ML Enhanced Penalty</h4>
+                            <div class="kpi-value text-success" id="val-ml">₹ --</div>
+                        </div>
+                        <div class="kpi-card highlight">
+                            <h4>Total DSM Savings</h4>
+                            <div class="kpi-value text-glow" id="val-savings">₹ --</div>
+                        </div>
+                    </div>
+                    
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h3>Financial Savings</h3>
+                        <img id="img-financials" src="" alt="Financial comparison chart">
+                    </div>
+                    <div class="chart-container">
+                        <h3>Forecast Timeseries</h3>
+                        <img id="img-timeseries" src="" alt="Timeseries forecast chart">
+                    </div>
+                </div>
+                
+                <div class="chart-container wide-chart" style="margin-top: 20px;">
+                    <h3>Tomorrow's Operational Forecast (96 Blocks)</h3>
+                    <img id="img-live-forecast" src="" alt="Live 96-block forecast chart" style="width: 100%; border-radius: 8px;">
+                </div>
+                
+                <div class="dashboard-actions" style="margin-top: 25px; text-align: center;">
+                    <a id="download-csv-btn" class="glow-button download-btn" href="#" target="_blank" style="text-decoration: none; padding: 12px 25px; font-weight: 600; display: inline-block;">Download CERC 96-Block Forecast (CSV)</a>
+                </div>
+            </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Custom JS -->
+    <script src="./app.js"></script>
+</body>
+</html>

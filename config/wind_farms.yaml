@@ -1,0 +1,130 @@
+parks:
+  - id: "muppandal"
+    name: "Muppandal Wind Farm"
+    state: "Tamil Nadu"
+    district: "Kanyakumari"
+    lat: 8.2435
+    lng: 77.5458
+    capacity_mw: 1500
+    zone: 1
+    ppa_rate: 3.50
+
+  - id: "jaisalmer"
+    name: "Jaisalmer Wind Park"
+    state: "Rajasthan"
+    district: "Jaisalmer"
+    lat: 26.9157
+    lng: 70.9083
+    capacity_mw: 1064
+    zone: 2
+    ppa_rate: 3.00
+
+  - id: "brahmanvel"
+    name: "Brahmanvel Wind Farm"
+    state: "Maharashtra"
+    district: "Dhule"
+    lat: 20.9450
+    lng: 74.0750
+    capacity_mw: 528
+    zone: 2
+    ppa_rate: 3.00
+
+  - id: "dhalgaon"
+    name: "Dhalgaon Wind Farm"
+    state: "Maharashtra"
+    district: "Sangli"
+    lat: 17.1512
+    lng: 74.7431
+    capacity_mw: 278
+    zone: 2
+    ppa_rate: 3.00
+
+  - id: "vankusawade"
+    name: "Vankusawade Wind Park"
+    state: "Maharashtra"
+    district: "Satara"
+    lat: 17.4160
+    lng: 73.8120
+    capacity_mw: 259
+    zone: 2
+    ppa_rate: 3.00
+
+  - id: "kayathar"
+    name: "Kayathar Wind Farm"
+    state: "Tamil Nadu"
+    district: "Thoothukudi"
+    lat: 8.9500
+    lng: 77.7200
+    capacity_mw: 300
+    zone: 1
+    ppa_rate: 3.50
+
+  - id: "mamatkheda"
+    name: "Mamatkheda Wind Park"
+    state: "Madhya Pradesh"
+    district: "Ratlam"
+    lat: 23.5800
+    lng: 74.9500
+    capacity_mw: 100
+    zone: 2
+    ppa_rate: 3.00
+
+  - id: "beluguppa"
+    name: "Beluguppa Wind Park"
+    state: "Andhra Pradesh"
+    district: "Anantapur"
+    lat: 14.7100
+    lng: 77.1300
+    capacity_mw: 100
+    zone: 2
+    ppa_rate: 3.00
+
+  - id: "vasadra"
+    name: "Vasadra Wind Farm"
+    state: "Gujarat"
+    district: "Kutch"
+    lat: 23.1000
+    lng: 69.8000
+    capacity_mw: 150
+    zone: 2
+    ppa_rate: 3.00
+
+  - id: "tirunelveli"
+    name: "Tirunelveli Clusters"
+    state: "Tamil Nadu"
+    district: "Tirunelveli"
+    lat: 8.7139
+    lng: 77.7567
+    capacity_mw: 1200
+    zone: 1
+    ppa_rate: 3.50
+
+  - id: "dangri"
+    name: "Dangri Wind Farm"
+    state: "Rajasthan"
+    district: "Jaisalmer"
+    lat: 26.5000
+    lng: 71.0000
+    capacity_mw: 54
+    zone: 2
+    ppa_rate: 3.00
+
+  - id: "bercha"
+    name: "Bercha Wind Farm"
+    state: "Madhya Pradesh"
+    district: "Ratlam"
+    lat: 23.4700
+    lng: 75.1400
+    capacity_mw: 50
+    zone: 2
+    ppa_rate: 3.00
+
+  - id: "khavda"
+    name: "Khavda Mega Park (Hybrid)"
+    state: "Gujarat"
+    district: "Kutch"
+    lat: 23.8300
+    lng: 69.5300
+    capacity_mw: 30000
+    zone: 3
+    ppa_rate: 2.50

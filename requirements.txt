@@ -11,5 +11,9 @@ requests-cache
 retry-requests
 windpowerlib
 seaborn
-mlflow
+mlflow==3.10.1
 email-validator>=2.0
+fastapi
+uvicorn
+python-multipart
+pyyaml

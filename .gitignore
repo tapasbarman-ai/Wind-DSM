@@ -164,7 +164,18 @@ cython_debug/
 # VS Code
 .vscode/
 
-# Project Specific
+# Project Specific Data & Models
+data/01_raw/live_forecasts/
+data/01_raw/custom/
+data/02_physics_baseline/
+data/03_ml_corrected/
+data/04_financials/
 outputs/
+mlruns/
+mlflow.db
 *.sqlite
 .cache.sqlite
+models/
+trash/
+notebooks/.ipynb_checkpoints/
+.cache/

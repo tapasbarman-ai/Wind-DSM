@@ -43,7 +43,7 @@ def calculate_physics_power(df: pd.DataFrame) -> pd.Series:
     Calculates theoretical power output using windpowerlib with Micro-Physics enhancements.
     (Monin-Obukhov and Moist Air limits).
     """
-    print("🌪️ Calculating Micro-Physics power output (Moist Air Density & DFIG Efficiency)...")
+    print("Calculating Micro-Physics power output (Moist Air Density & DFIG Efficiency)...")
     
     vestas_v112 = {
         'turbine_type': 'V112/3000',

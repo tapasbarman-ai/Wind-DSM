@@ -78,27 +78,40 @@ def fetch_historical_wind_data(lat: float, lon: float, start_date: str, end_date
     return df
 
 if __name__ == "__main__":
-    lat = 23.82
-    lon = 69.72
+    import yaml
+    
     os.makedirs("data/01_raw", exist_ok=True)
     
-    datasets = [
-        {"name": "5yr", "start": "2020-01-01", "end": "2024-12-31"},
-        {"name": "10yr", "start": "2015-01-01", "end": "2024-12-31"},
-        {"name": "15yr", "start": "2010-01-01", "end": "2024-12-31"}
-    ]
-    
-    for ds in datasets:
-        out_file = f"data/01_raw/khavda_{ds['name']}_historical.csv"
+    # Load all wind farms from the configuration file
+    with open("config/wind_farms.yaml", "r") as file:
+        config = yaml.safe_load(file)
+        
+    for park in config['parks']:
+        park_id = park['id']
+        lat = park['lat']
+        lon = park['lng']
+        
+        # We will just fetch the 10yr dataset for each park to standardize
+        ds_name = "10yr"
+        start_date = "2015-01-01"
+        end_date = "2024-12-31"
+        
+        out_file = f"data/01_raw/{park_id}_{ds_name}_historical.csv"
+        
+        if os.path.exists(out_file):
+            print(f"\nSkipping {park['name']} - data already downloaded.")
+            continue
+            
         print(f"\n=============================================")
-        print(f"Downloading {ds['name']} Dataset ({ds['start']} to {ds['end']})")
+        print(f"Downloading {ds_name} Dataset for {park['name']} ({start_date} to {end_date})")
         print(f"=============================================")
         
-        df_khavda = fetch_historical_wind_data(lat, lon, ds['start'], ds['end'])
-        
-        print("\n--------- DOWNLOAD COMPLETE ---------")
-        print(f"Dataset Shape: {df_khavda.shape}")
-        print(f"Saving to -> {out_file}")
-        
-        df_khavda.to_csv(out_file, index=False)
-        print(f"Done saving {ds['name']} dataset!")
+        try:
+            df_park = fetch_historical_wind_data(lat, lon, start_date, end_date)
+            print(f"\n--------- DOWNLOAD COMPLETE ---------")
+            print(f"Dataset Shape: {df_park.shape}")
+            print(f"Saving to -> {out_file}")
+            df_park.to_csv(out_file, index=False)
+            print(f"Done saving {park['name']} dataset!")
+        except Exception as e:
+            print(f"Failed to download data for {park['name']}: {e}")

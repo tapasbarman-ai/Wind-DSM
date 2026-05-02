@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')  # Force non-interactive backend — prevents Tkinter thread crashes on Windows
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -6,10 +8,11 @@ import os
 # Set a nice theme
 sns.set_theme(style="whitegrid")
 
-def plot_financial_savings(results: dict, save_dir: str = "outputs/plots"):
+def plot_financial_savings(results: dict, park_id: str = "default", save_dir: str = "outputs/plots"):
     """
     Plots a bar chart comparing the pure Physics penalties vs Physics + ML Penalties.
     """
+    save_dir = os.path.join(save_dir, park_id)
     os.makedirs(save_dir, exist_ok=True)
     
     labels = ['Pure Physics Baseline', 'Machine Learning Enhanced']
@@ -21,7 +24,7 @@ def plot_financial_savings(results: dict, save_dir: str = "outputs/plots"):
     colors = ['#e74c3c', '#2ecc71'] # Red for high penalty, Green for low/zero penalty
     bars = plt.bar(labels, penalties, color=colors)
     
-    plt.title('Indian CERC Deviation Settlement Mechanism (DSM) Penalties\n(1-Year Backtest on 3MW Turbine)', fontsize=14, pad=20)
+    plt.title(f'Indian CERC DSM Penalties ({park_id.upper()})\n(1-Year Backtest)', fontsize=14, pad=20)
     plt.ylabel('Penalty Paid (INR ₹)', fontsize=12)
     
     # Add data labels on top of bars
@@ -36,11 +39,12 @@ def plot_financial_savings(results: dict, save_dir: str = "outputs/plots"):
     plt.close()
     print(f"-> Saved financial comparison chart to {save_path}")
 
-def plot_forecast_vs_actual(df: pd.DataFrame, days: int = 7, save_dir: str = "outputs/plots"):
+def plot_forecast_vs_actual(df: pd.DataFrame, days: int = 7, park_id: str = "default", save_dir: str = "outputs/plots"):
     """
     Plots a time-series line chart comparing Actual, Physics, and ML forecasts 
     for a specific slice of the test data.
     """
+    save_dir = os.path.join(save_dir, park_id)
     os.makedirs(save_dir, exist_ok=True)
     
     # Take a 1-week slice of the data so the chart isn't overcrowded
@@ -58,7 +62,7 @@ def plot_forecast_vs_actual(df: pd.DataFrame, days: int = 7, save_dir: str = "ou
     plt.plot(df_slice['time'], df_slice['physics_mw'], label='Pure Physics Forecast', color='#e74c3c', linestyle='--', linewidth=1.5, alpha=0.8)
     plt.plot(df_slice['time'], df_slice['final_forecast_mw'], label='ML Enhanced Forecast', color='#3498db', linestyle='-', linewidth=2, alpha=0.9)
     
-    plt.title(f'Wind Generation Forecast vs Actual ({days}-Day Slice)', fontsize=16)
+    plt.title(f'Wind Generation Forecast vs Actual ({days}-Day Slice) - {park_id.upper()}', fontsize=16)
     plt.xlabel('Date / Time', fontsize=12)
     plt.ylabel('Power Output (MW)', fontsize=12)
     plt.legend(loc='upper right', fontsize=11)
@@ -72,10 +76,11 @@ def plot_forecast_vs_actual(df: pd.DataFrame, days: int = 7, save_dir: str = "ou
     plt.close()
     print(f"-> Saved timeseries chart to {save_path}")
 
-def generate_reports(df_test: pd.DataFrame, results: dict, save_dir: str = "data/04_financials"):
+def generate_reports(df_test: pd.DataFrame, results: dict, park_id: str = "default", save_dir: str = "data/04_financials"):
     """
     Saves the absolute results to CSV and a summary text file.
     """
+    save_dir = os.path.join(save_dir, park_id)
     os.makedirs(save_dir, exist_ok=True)
     
     # Save raw test output comparing predictions to actuals
@@ -98,3 +103,33 @@ def generate_reports(df_test: pd.DataFrame, results: dict, save_dir: str = "data
         f.write("====================================================\n")
         
     print(f"-> Saved executive summary to {txt_path}")
+
+def plot_96_block_forecast(df_96: pd.DataFrame, park_id: str = "default", save_dir: str = "outputs/plots"):
+    """
+    Plots the specific 96-block (24-hour) day-ahead schedule.
+    """
+    save_dir = os.path.join(save_dir, park_id)
+    os.makedirs(save_dir, exist_ok=True)
+    
+    plt.figure(figsize=(12, 6))
+    
+    # Plot both physics and ML forecasts for comparison
+    plt.fill_between(df_96['time'], df_96['physics_mw'], label='Physics Base', color='#e74c3c', alpha=0.1)
+    plt.plot(df_96['time'], df_96['physics_mw'], color='#e74c3c', linestyle='--', linewidth=1, alpha=0.5)
+    
+    plt.plot(df_96['time'], df_96['final_forecast_mw'], label='ML Optimized Schedule (CERC)', color='#2ecc71', linewidth=3)
+    
+    plt.title(f'96-Block Day-Ahead Power Schedule - {park_id.upper()}\n(Operational Forecast for Tomorrow)', fontsize=15)
+    plt.xlabel('Time (15-min blocks)', fontsize=12)
+    plt.ylabel('Planned Power Output (MW)', fontsize=12)
+    plt.legend(loc='upper right')
+    
+    # Formatting
+    plt.xticks(rotation=45)
+    plt.grid(True, linestyle=':', alpha=0.6)
+    plt.tight_layout()
+    
+    save_path = os.path.join(save_dir, 'live_96_block_forecast.png')
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+    print(f"-> Saved live 96-block forecast chart to {save_path}")

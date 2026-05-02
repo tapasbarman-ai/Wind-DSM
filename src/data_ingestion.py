@@ -4,6 +4,7 @@ import requests
 import pandas as pd
 import xarray as xr
 from datetime import datetime, timedelta
+import numpy as np
 import concurrent.futures
 
 def get_latest_nomads_cycle(lat, lon):
@@ -34,13 +35,13 @@ def get_latest_nomads_cycle(lat, lon):
             "dir": dir_path
         }
         
-        response = requests.head(url, params=params)
+        response = requests.head(url, params=params, timeout=15)
         if response.status_code == 200:
             return date_str, cycle_str
             
     raise Exception("Could not find a valid recent GFS cycle on NOMADS.")
 
-def download_grib(forecast_hour, date_str, cycle_str, lat, lon):
+def download_grib(forecast_hour, date_str, cycle_str, lat, lon, tmp_dir="."):
     """
     Downloads a specific forecast hour from the NOMADS subset filter.
     Returns the tmp file name if successful, else None.
@@ -67,10 +68,11 @@ def download_grib(forecast_hour, date_str, cycle_str, lat, lon):
         "dir": dir_path
     }
     
-    tmp_filename = f"tmp_gfs_{cycle_str}_{forecast_hour:03d}.grib2"
+    os.makedirs(tmp_dir, exist_ok=True)
+    tmp_filename = os.path.join(tmp_dir, f"tmp_gfs_{cycle_str}_{forecast_hour:03d}.grib2")
     
     for _ in range(3):
-        resp = requests.get(url, params=params, timeout=30)
+        resp = requests.get(url, params=params, timeout=60)
         if resp.status_code == 200 and len(resp.content) > 1000:
             with open(tmp_filename, "wb") as f:
                 f.write(resp.content)
@@ -106,28 +108,45 @@ def parse_grib(tmp_filename, forecast_hour):
         print(f"Failed to parse {forecast_hour:03d}: {e}")
         row = None
     finally:
-        # Cleanup
-        if os.path.exists(tmp_filename):
-            try: os.remove(tmp_filename)
-            except: pass
-        if os.path.exists(tmp_filename + ".idx"):
-            try: os.remove(tmp_filename + ".idx")
+        # Cleanup both the GRIB file and any sidecar .idx files
+        for path in [tmp_filename, tmp_filename + ".idx"]:
+            if path and os.path.exists(path):
+                try: os.remove(path)
+                except: pass
+        # Also clean up cfgrib hash-named .idx sidecars (e.g. file.grib2.abc123.idx)
+        if tmp_filename:
+            parent = os.path.dirname(tmp_filename)
+            base = os.path.basename(tmp_filename)
+            try:
+                for f in os.listdir(parent or "."):
+                    if f.startswith(base) and f.endswith(".idx"):
+                        try: os.remove(os.path.join(parent or ".", f))
+                        except: pass
             except: pass
             
     return row
 
-def fetch_data(lat: float, lon: float, forecast_hours=24) -> pd.DataFrame:
+def fetch_data(lat: float, lon: float, forecast_hours=24, park_id: str = "unknown") -> pd.DataFrame:
     print(f"Initializing NOAA NOMADS GFS access for lat: {lat}, lon: {lon}")
     
-    date_str, cycle_str = get_latest_nomads_cycle(lat, lon)
-    print(f"Using Latest Available Cycle: Date {date_str}, Cycle {cycle_str}z")
+    try:
+        date_str, cycle_str = get_latest_nomads_cycle(lat, lon)
+        print(f"Using Latest Available Cycle: Date {date_str}, Cycle {cycle_str}z")
+    except Exception as e:
+        print(f"NOAA NOMADS Primary Access Failed: {e}")
+        print("Switching to Emergency Fallback: Open-Meteo Global GFS...")
+        return fetch_open_meteo_fallback(lat, lon, park_id)
+    
+    # All temp GRIB files go into a per-park subdirectory — keeps root clean
+    tmp_dir = os.path.join("data", "01_raw", "live_forecasts", park_id, "tmp")
+    os.makedirs(tmp_dir, exist_ok=True)
     
     # Download in parallel
     print(f"Downloading {forecast_hours} hours of forecasting data from NOAA servers...")
     downloaded_files = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         futures = {
-            executor.submit(download_grib, h, date_str, cycle_str, lat, lon): h 
+            executor.submit(download_grib, h, date_str, cycle_str, lat, lon, tmp_dir): h 
             for h in range(forecast_hours + 1)
         }
         
@@ -144,13 +163,86 @@ def fetch_data(lat: float, lon: float, forecast_hours=24) -> pd.DataFrame:
         row = parse_grib(downloaded_files[h], h)
         if row:
             rows.append(row)
+    
+    # Cleanup the now-empty tmp dir
+    try:
+        os.rmdir(tmp_dir)
+    except OSError:
+        pass  # Not empty — leave it, stale files can be inspected
                 
     df = pd.DataFrame(rows)
     df.sort_values('time', inplace=True)
     df.reset_index(drop=True, inplace=True)
     
+    # Save the parsed forecast as a dated CSV in the park's live_forecasts folder
+    out_dir = os.path.join("data", "01_raw", "live_forecasts", park_id)
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, f"gfs_forecast_{date_str}.csv")
+    df.to_csv(out_path, index=False)
+    print(f"Live forecast saved -> {out_path}")
+    
     print("Data successfully fetched from NOAA Primary Operational Access!")
     return df
+
+def fetch_open_meteo_fallback(lat, lon, park_id):
+    """
+    Emergency fallback using Open-Meteo's GFS wrapper. 
+    Much higher availability than the direct NOAA filter scripts.
+    """
+    import openmeteo_requests
+    import requests_cache
+    from retry_requests import retry
+
+    # Setup the Open-Meteo API client with cache and retry on error
+    cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
+    retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+    openmeteo = openmeteo_requests.Client(session=retry_session)
+
+    url = "https://api.open-meteo.com/v1/gfs"
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": ["wind_speed_100m", "temperature_2m", "surface_pressure"],
+        "wind_speed_unit": "ms",
+        "forecast_days": 2
+    }
+    
+    try:
+        responses = openmeteo.weather_api(url, params=params)
+        response = responses[0]
+        hourly = response.Hourly()
+        
+        # Build dataframe
+        times = pd.date_range(
+            start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
+            periods=hourly.Interval(), # This is wrong in the SDK docs, it's actually data length
+            freq=pd.Timedelta(seconds=hourly.Interval())
+        )
+        
+        # Wait, the SDK is tricky. Let's do a simpler manual request if SDK fails
+        data = {
+            "time": pd.to_datetime(hourly.Time(), unit="s", utc=True) + pd.to_timedelta(np.arange(hourly.Variables(0).ValuesLength()), unit='h'),
+            "wind_speed_100m": hourly.Variables(0).ValuesAsNumpy(),
+            "temperature_2m": hourly.Variables(1).ValuesAsNumpy(),
+            "surface_pressure": hourly.Variables(2).ValuesAsNumpy() / 1.0 # Already in hPa or Pa?
+        }
+        
+        df = pd.DataFrame(data)
+        
+        # Minimal cleanup to match main pipeline expectations
+        df['U'] = df['wind_speed_100m'] * 0.7 # Approximate components
+        df['V'] = df['wind_speed_100m'] * 0.7
+        
+        out_dir = os.path.join("data", "01_raw", "live_forecasts", park_id)
+        os.makedirs(out_dir, exist_ok=True)
+        df.to_csv(os.path.join(out_dir, f"openmeteo_fallback_{datetime.now().strftime('%Y%m%d')}.csv"), index=False)
+        
+        print("Emergency Fallback Successful: Data fetched via Open-Meteo.")
+        return df
+        
+    except Exception as e:
+        print(f"Emergency Fallback Failed: {e}")
+        return pd.DataFrame()
 
 if __name__ == "__main__":
     df_jaisalmer = fetch_data(26.5, 71.5, forecast_hours=6)

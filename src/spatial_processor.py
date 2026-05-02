@@ -70,7 +70,7 @@ def downscale_dataframe(df: pd.DataFrame, target_lat: float = 15.34, target_lon:
     Main orchestrator for 1km spatial downscaling.
     Applies rigorous micro-scale topographical corrections to standard historical data.
     """
-    print("🌍 Applying 1km Spatial Downscaling (Surface Roughness & Topography)...")
+    print("Applying 1km Spatial Downscaling (Surface Roughness & Topography)...")
     df_downscaled = df.copy()
     
     # If using grid data, bilinear interpolation goes here.

@@ -1,0 +1,21 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install system dependencies required for data science packages
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    libeccodes0 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Expose the port the FastAPI server runs on
+EXPOSE 8000
+
+# 1. Migrate DB schema  2. Fix Windows paths → /app/mlruns  3. Start server
+CMD ["sh", "-c", "mlflow db upgrade sqlite:////app/mlflow.db && python fix_mlflow_paths.py && uvicorn api:app --host 0.0.0.0 --port 8000"]

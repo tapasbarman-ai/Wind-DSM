@@ -14,7 +14,7 @@ def interpolate_to_15min_pchip(df: pd.DataFrame) -> pd.DataFrame:
     
     This matches the exact 96-block 15-min reporting requirement for Indian CERC DSM calculations.
     """
-    print("⏳ Applying 15-Minute PCHIP Temporal Interpolation (CERC 96-Block Standards)...")
+    print("Applying 15-Minute PCHIP Temporal Interpolation (CERC 96-Block Standards)...")
     
     df = df.sort_values('time').copy()
     
