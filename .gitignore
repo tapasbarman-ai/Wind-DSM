@@ -179,3 +179,10 @@ models/
 trash/
 notebooks/.ipynb_checkpoints/
 .cache/
+
+# Large Datasets, Documents and Logs
+data/**/*.csv
+data/**/*.xlsx
+data/**/*.pdf
+pip_output.txt
+train_output.txt

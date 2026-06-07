@@ -2,13 +2,17 @@ import matplotlib
 matplotlib.use('Agg')  # Force non-interactive backend — prevents Tkinter thread crashes on Windows
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')  # Force non-interactive backend — prevents Tkinter thread crashes on Windows
+import pandas as pd
+import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
 # Set a nice theme
 sns.set_theme(style="whitegrid")
 
-def plot_financial_savings(results: dict, park_id: str = "default", save_dir: str = "outputs/plots"):
+def plot_financial_savings(results: dict, park_id: str = "default", save_dir: str = "outputs/plots", suffix: str = ""):
     """
     Plots a bar chart comparing the pure Physics penalties vs Physics + ML Penalties.
     """
@@ -34,12 +38,12 @@ def plot_financial_savings(results: dict, park_id: str = "default", save_dir: st
                  f'₹ {yval:,.2f}', ha='center', va='bottom', fontsize=11, fontweight='bold')
                  
     plt.tight_layout()
-    save_path = os.path.join(save_dir, 'financial_savings_comparison.png')
+    save_path = os.path.join(save_dir, f'financial_savings_comparison{suffix}.png')
     plt.savefig(save_path, dpi=300)
     plt.close()
     print(f"-> Saved financial comparison chart to {save_path}")
 
-def plot_forecast_vs_actual(df: pd.DataFrame, days: int = 7, park_id: str = "default", save_dir: str = "outputs/plots"):
+def plot_forecast_vs_actual(df: pd.DataFrame, days: int = 7, park_id: str = "default", save_dir: str = "outputs/plots", suffix: str = ""):
     """
     Plots a time-series line chart comparing Actual, Physics, and ML forecasts 
     for a specific slice of the test data.
@@ -71,7 +75,7 @@ def plot_forecast_vs_actual(df: pd.DataFrame, days: int = 7, park_id: str = "def
     plt.xticks(rotation=45)
     plt.tight_layout()
     
-    save_path = os.path.join(save_dir, 'forecast_vs_actual_timeseries.png')
+    save_path = os.path.join(save_dir, f'forecast_vs_actual_timeseries{suffix}.png')
     plt.savefig(save_path, dpi=300)
     plt.close()
     print(f"-> Saved timeseries chart to {save_path}")
@@ -104,7 +108,7 @@ def generate_reports(df_test: pd.DataFrame, results: dict, park_id: str = "defau
         
     print(f"-> Saved executive summary to {txt_path}")
 
-def plot_96_block_forecast(df_96: pd.DataFrame, park_id: str = "default", save_dir: str = "outputs/plots"):
+def plot_96_block_forecast(df_96: pd.DataFrame, park_id: str = "default", save_dir: str = "outputs/plots", suffix: str = ""):
     """
     Plots the specific 96-block (24-hour) day-ahead schedule.
     """
@@ -129,7 +133,7 @@ def plot_96_block_forecast(df_96: pd.DataFrame, park_id: str = "default", save_d
     plt.grid(True, linestyle=':', alpha=0.6)
     plt.tight_layout()
     
-    save_path = os.path.join(save_dir, 'live_96_block_forecast.png')
+    save_path = os.path.join(save_dir, f'live_96_block_forecast{suffix}.png')
     plt.savefig(save_path, dpi=300)
     plt.close()
     print(f"-> Saved live 96-block forecast chart to {save_path}")

@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style.css?v=2.0">
 </head>
 <body>
     <div class="app-container">
@@ -24,6 +24,26 @@
             <header class="sidebar-header">
                 <h1>Wind DSM</h1>
                 <p class="subtitle">National Wind Infrastructure</p>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 0.75rem;">
+                    <div class="api-status" id="api-status" style="margin-top: 0;">
+                        <span class="status-dot offline"></span>
+                        <span class="status-text">Checking API...</span>
+                    </div>
+                    <button class="wind-flow-toggle" id="wind-flow-toggle">
+                        <svg viewBox="0 0 24 24" width="12" height="12" style="margin-right: 2px;"><path fill="currentColor" d="M19.36 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.64-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
+                        Show Wind Flow
+                    </button>
+                </div>
+                <div id="windy-theme-selector" class="hidden" style="margin-top: 0.75rem; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); border-radius: 20px; padding: 4px 12px; width: fit-content; animation: fadeIn 0.3s ease;">
+                    <span class="micro-text" style="margin-bottom: 0; font-size: 0.75rem;">Color Palette:</span>
+                    <select id="windy-filter-select" style="background: transparent; border: none; color: var(--text-main); font-size: 0.75rem; font-family: 'Outfit', sans-serif; cursor: pointer; outline: none; font-weight: 500;">
+                        <option value="cyan" style="background: var(--bg-base);" selected>Midnight Cyan (Slate Match)</option>
+                        <option value="purple" style="background: var(--bg-base);">Neon Purple (OEM Match)</option>
+                        <option value="emerald" style="background: var(--bg-base);">Emerald Green (IPP Match)</option>
+                        <option value="amber" style="background: var(--bg-base);">Golden Amber (Multi Match)</option>
+                        <option value="default" style="background: var(--bg-base);">Default Rainbow</option>
+                    </select>
+                </div>
             </header>
 
             <section class="stats-section">
@@ -31,6 +51,18 @@
                 <ul class="capacity-list" id="capacity-list">
                     <!-- Populated by JS -->
                 </ul>
+            </section>
+
+            <section class="farms-section">
+                <h2>Wind Farm Explorer</h2>
+                <div class="search-box">
+                    <input type="text" id="farm-search" placeholder="Search wind farm...">
+                </div>
+                <div class="farms-scroll-container">
+                    <ul class="farms-list" id="farms-list">
+                        <!-- Populated by JS -->
+                    </ul>
+                </div>
             </section>
 
             <section class="legend-section">
@@ -50,7 +82,12 @@
 
         <!-- Main Map Area -->
         <main class="map-wrapper">
-            <div id="map" class="map-container"></div>
+            <div id="map" class="map-container" style="position: relative; z-index: 5;"></div>
+            
+            <!-- Live Windy.com Real-Time Flow Overlay -->
+            <div id="windy-container" class="map-container hidden" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none;">
+                <iframe id="windy-iframe" src="" style="width: 100%; height: 100%; border: none; border-radius: 8px; pointer-events: none;"></iframe>
+            </div>
             
             <!-- Floating overlay for selected details -->
             <div class="detail-overlay glass-panel hidden" id="detail-overlay">
@@ -67,6 +104,9 @@
                     <div class="model-options">
                         <label class="radio-label">
                             <input type="radio" name="model_mode" value="pretrained" checked> Use Pre-Trained Model
+                        </label>
+                        <label id="custom-model-option" class="radio-label hidden">
+                            <input type="radio" name="model_mode" value="custom_model"> Use Retrained Custom Model
                         </label>
                         <label class="radio-label">
                             <input type="radio" name="model_mode" value="custom"> Upload Custom SCADA (Retrain)
@@ -96,50 +136,94 @@
                     </div>
                     <button class="close-btn" id="close-results">&times;</button>
                 </header>
+
+                <div class="dashboard-tabs">
+                    <button class="tab-btn active" onclick="switchTab(event, 'tab-live')">
+                        Tomorrow's Live Forecast (Operational)
+                    </button>
+                    <button class="tab-btn" onclick="switchTab(event, 'tab-backtest')">
+                        Historical Performance (1-Year Backtest)
+                    </button>
+                </div>
+
                 <div class="results-content">
-                    <div class="kpi-grid">
-                        <div class="kpi-card">
-                            <h4>Physics Baseline Penalty</h4>
-                            <div class="kpi-value text-danger" id="val-physics">₹ --</div>
+                    <!-- Tab 1: Live Forecast -->
+                    <div id="tab-live" class="tab-content active">
+                        <div class="live-info-banner">
+                            <span class="info-icon">ℹ</span>
+                            <p>This forecast is generated in real-time from live NOAA weather models for the next 24 hours. The generated schedule is formatted in 96 blocks of 15-minute intervals ready for grid submission.</p>
                         </div>
-                        <div class="kpi-card">
-                            <h4>ML Enhanced Penalty</h4>
-                            <div class="kpi-value text-success" id="val-ml">₹ --</div>
+                        
+                        <div class="kpi-grid live-stats-grid">
+                            <div class="kpi-card live-kpi">
+                                <h4>Forecast Run Date</h4>
+                                <div class="kpi-value text-glow" id="val-live-date" style="font-size: 1.6rem; padding: 0.3rem 0;">--</div>
+                            </div>
+                            <div class="kpi-card live-kpi">
+                                <h4>Predicted Peak Generation</h4>
+                                <div class="kpi-value text-glow" id="val-live-peak">-- MW</div>
+                            </div>
+                            <div class="kpi-card live-kpi">
+                                <h4>Predicted Avg Generation</h4>
+                                <div class="kpi-value text-glow" id="val-live-avg">-- MW</div>
+                            </div>
                         </div>
-                        <div class="kpi-card highlight">
-                            <h4>Total DSM Savings</h4>
-                            <div class="kpi-value text-glow" id="val-savings">₹ --</div>
+                        
+                        <div class="chart-container wide-chart" style="margin-top: 10px;">
+                            <h3>Tomorrow's 96-Block Operational Forecast</h3>
+                            <img id="img-live-forecast" src="" alt="Live 96-block forecast chart" style="width: 100%; border-radius: 8px;">
+                        </div>
+                        
+                        <div class="dashboard-actions" style="margin-top: 15px; text-align: center;">
+                            <a id="download-csv-btn" class="glow-button download-btn" href="#" target="_blank" style="text-decoration: none; padding: 12px 25px; font-weight: 600; display: inline-block;">Download CERC 96-Block Forecast (CSV)</a>
                         </div>
                     </div>
                     
-                <div class="charts-grid">
-                    <div class="chart-container">
-                        <h3>Financial Savings</h3>
-                        <img id="img-financials" src="" alt="Financial comparison chart">
+                    <!-- Tab 2: Historical Backtest -->
+                    <div id="tab-backtest" class="tab-content">
+                        <div class="live-info-banner warning-banner">
+                            <span class="info-icon">📊</span>
+                            <p>Below is a financial simulation evaluated over the out-of-sample year (2024) comparing CERC grid deviation penalties. This estimates the annual savings generated by the model.</p>
+                        </div>
+
+                        <div class="kpi-grid">
+                            <div class="kpi-card penalty-physics">
+                                <h4>Physics Baseline Penalty</h4>
+                                <div class="kpi-value text-danger" id="val-physics">₹ --</div>
+                            </div>
+                            <div class="kpi-card penalty-ml">
+                                <h4>ML Enhanced Penalty</h4>
+                                <div class="kpi-value text-warning" id="val-ml">₹ --</div>
+                            </div>
+                            <div class="kpi-card savings highlight">
+                                <h4>Total DSM Savings</h4>
+                                <div class="kpi-value text-success" id="val-savings">₹ --</div>
+                            </div>
+                        </div>
+                        
+                        <div class="charts-grid">
+                            <div class="chart-container">
+                                <h3>Financial Savings (Annual Backtest)</h3>
+                                <img id="img-financials" src="" alt="Financial comparison chart">
+                            </div>
+                            <div class="chart-container">
+                                <h3>Forecast vs Actual (7-Day Slice)</h3>
+                                <img id="img-timeseries" src="" alt="Timeseries forecast chart">
+                            </div>
+                        </div>
                     </div>
-                    <div class="chart-container">
-                        <h3>Forecast Timeseries</h3>
-                        <img id="img-timeseries" src="" alt="Timeseries forecast chart">
-                    </div>
                 </div>
-                
-                <div class="chart-container wide-chart" style="margin-top: 20px;">
-                    <h3>Tomorrow's Operational Forecast (96 Blocks)</h3>
-                    <img id="img-live-forecast" src="" alt="Live 96-block forecast chart" style="width: 100%; border-radius: 8px;">
-                </div>
-                
-                <div class="dashboard-actions" style="margin-top: 25px; text-align: center;">
-                    <a id="download-csv-btn" class="glow-button download-btn" href="#" target="_blank" style="text-decoration: none; padding: 12px 25px; font-weight: 600; display: inline-block;">Download CERC 96-Block Forecast (CSV)</a>
-                </div>
-            </div>
             </div>
         </main>
     </div>
+
+    <!-- Modal Backdrop Blur Overlay -->
+    <div class="modal-backdrop hidden" id="modal-backdrop"></div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
     <!-- Custom JS -->
-    <script src="./app.js"></script>
+    <script src="./app.js?v=2.0"></script>
 </body>
 </html>

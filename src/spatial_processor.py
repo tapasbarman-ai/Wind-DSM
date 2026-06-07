@@ -2,6 +2,26 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import RectBivariateSpline
 
+class TerrainProcessor:
+    def __init__(self, farm_altitude, hub_height, alpha=0.14):
+        self.target_height_amsl = farm_altitude + hub_height
+        self.alpha = alpha
+
+    def adjust_wind_speed(self, gfs_wind_speed_100m, gfs_surface_hgt):
+        """
+        gfs_wind_speed_100m: Wind speed from GFS at 100m
+        gfs_surface_hgt: GFS's internal surface elevation (HGT:surface)
+        """
+        # The 100m GFS wind is located at (GFS Surface Height + 100)
+        gfs_effective_height_amsl = gfs_surface_hgt + 100
+        
+        # Power Law Ratio
+        # Factor = (Actual Hub Height / GFS Model Height) ^ alpha
+        height_ratio = self.target_height_amsl / gfs_effective_height_amsl
+        adjustment_factor = np.power(height_ratio, self.alpha)
+        
+        return gfs_wind_speed_100m * adjustment_factor
+
 # --- 1km Spatial Resolution Constants ---
 VON_KARMAN = 0.40
 STANDARD_Z0_COARSE = 0.03  # Typical coarse model surface roughness (e.g., standard grass/crops)

@@ -1,4 +1,4 @@
-parks:
+farms:
   - id: "muppandal"
     name: "Muppandal Wind Farm"
     state: "Tamil Nadu"
@@ -6,6 +6,8 @@ parks:
     lat: 8.2435
     lng: 77.5458
     capacity_mw: 1500
+    altitude_amsl: 78
+    alpha: 0.13
     zone: 1
     ppa_rate: 3.50
 
@@ -16,6 +18,8 @@ parks:
     lat: 26.9157
     lng: 70.9083
     capacity_mw: 1064
+    altitude_amsl: 235
+    alpha: 0.11
     zone: 2
     ppa_rate: 3.00
 
@@ -26,6 +30,8 @@ parks:
     lat: 20.9450
     lng: 74.0750
     capacity_mw: 528
+    altitude_amsl: 580
+    alpha: 0.17
     zone: 2
     ppa_rate: 3.00
 
@@ -36,6 +42,8 @@ parks:
     lat: 17.1512
     lng: 74.7431
     capacity_mw: 278
+    altitude_amsl: 765
+    alpha: 0.16
     zone: 2
     ppa_rate: 3.00
 
@@ -46,6 +54,8 @@ parks:
     lat: 17.4160
     lng: 73.8120
     capacity_mw: 259
+    altitude_amsl: 1040
+    alpha: 0.20
     zone: 2
     ppa_rate: 3.00
 
@@ -56,6 +66,8 @@ parks:
     lat: 8.9500
     lng: 77.7200
     capacity_mw: 300
+    altitude_amsl: 92
+    alpha: 0.13
     zone: 1
     ppa_rate: 3.50
 
@@ -66,6 +78,8 @@ parks:
     lat: 23.5800
     lng: 74.9500
     capacity_mw: 100
+    altitude_amsl: 485
+    alpha: 0.15
     zone: 2
     ppa_rate: 3.00
 
@@ -76,6 +90,8 @@ parks:
     lat: 14.7100
     lng: 77.1300
     capacity_mw: 100
+    altitude_amsl: 460
+    alpha: 0.15
     zone: 2
     ppa_rate: 3.00
 
@@ -86,6 +102,8 @@ parks:
     lat: 23.1000
     lng: 69.8000
     capacity_mw: 150
+    altitude_amsl: 25
+    alpha: 0.10
     zone: 2
     ppa_rate: 3.00
 
@@ -96,6 +114,8 @@ parks:
     lat: 8.7139
     lng: 77.7567
     capacity_mw: 1200
+    altitude_amsl: 85
+    alpha: 0.13
     zone: 1
     ppa_rate: 3.50
 
@@ -106,6 +126,8 @@ parks:
     lat: 26.5000
     lng: 71.0000
     capacity_mw: 54
+    altitude_amsl: 215
+    alpha: 0.11
     zone: 2
     ppa_rate: 3.00
 
@@ -116,6 +138,8 @@ parks:
     lat: 23.4700
     lng: 75.1400
     capacity_mw: 50
+    altitude_amsl: 495
+    alpha: 0.15
     zone: 2
     ppa_rate: 3.00
 
@@ -126,5 +150,20 @@ parks:
     lat: 23.8300
     lng: 69.5300
     capacity_mw: 30000
+    altitude_amsl: 15
+    alpha: 0.10
     zone: 3
     ppa_rate: 2.50
+
+  - id: "rsopl_koppal"
+    name: "RSOPL Koppal Wind Plant"
+    state: "Karnataka"
+    district: "Koppal"
+    lat: 15.3400
+    lng: 76.1500
+    capacity_mw: 75
+    altitude_amsl: 600
+    hub_height: 84
+    alpha: 0.15
+    zone: 2
+    ppa_rate: 3.872

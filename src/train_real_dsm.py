@@ -72,7 +72,9 @@ def calculate_dsm_cost(forecast, actual, time_series, capacity=75.0):
     return pd.Series(penalties, index=actual.index)
 
 if __name__ == "__main__":
-    file_path = r"C:\Users\tb619\Videos\Wind\Wind_DSM_Optimization\data\01_raw\rsopl_koppal_2025_merged.csv"
+    file_path = "data/01_raw/rsopl_koppal_2025_merged.csv"
+    if not os.path.exists(file_path):
+        file_path = os.path.join(os.path.dirname(__file__), "..", "data", "01_raw", "rsopl_koppal_2025_merged.csv")
     print(f"Loading true DSM data from {file_path}...")
     df = pd.read_csv(file_path)
     

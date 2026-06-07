@@ -86,7 +86,8 @@ if __name__ == "__main__":
     with open("config/wind_farms.yaml", "r") as file:
         config = yaml.safe_load(file)
         
-    for park in config['parks']:
+    farms_list = config.get('farms', config.get('parks', []))
+    for park in farms_list:
         park_id = park['id']
         lat = park['lat']
         lon = park['lng']

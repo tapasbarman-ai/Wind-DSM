@@ -60,6 +60,7 @@ def download_grib(forecast_hour, date_str, cycle_str, lat, lon, tmp_dir="."):
         "var_TMP": "on",
         "var_UGRD": "on",
         "var_VGRD": "on",
+        "var_HGT": "on",
         "subregion": "",
         "leftlon": lon,
         "rightlon": lon,
@@ -71,12 +72,15 @@ def download_grib(forecast_hour, date_str, cycle_str, lat, lon, tmp_dir="."):
     os.makedirs(tmp_dir, exist_ok=True)
     tmp_filename = os.path.join(tmp_dir, f"tmp_gfs_{cycle_str}_{forecast_hour:03d}.grib2")
     
-    for _ in range(3):
-        resp = requests.get(url, params=params, timeout=60)
-        if resp.status_code == 200 and len(resp.content) > 1000:
-            with open(tmp_filename, "wb") as f:
-                f.write(resp.content)
-            return tmp_filename
+    for i in range(3):
+        try:
+            resp = requests.get(url, params=params, timeout=60)
+            if resp.status_code == 200 and len(resp.content) > 1000:
+                with open(tmp_filename, "wb") as f:
+                    f.write(resp.content)
+                return tmp_filename
+        except Exception as e:
+            print(f"Request failed for hour {forecast_hour} (attempt {i + 1}/3): {e}")
         time.sleep(1)
             
     return None
@@ -101,7 +105,8 @@ def parse_grib(tmp_filename, forecast_hour):
             'wind_speed_100m': float((df_100['u100'].iloc[0]**2 + df_100['v100'].iloc[0]**2)**0.5),
             'temperature_2m': float(df_2m['t2m'].iloc[0] - 273.15),
             'surface_pressure': float(df_sfc['sp'].iloc[0] / 100),
-            'wind_gust': float(df_sfc.get('gust', pd.Series([0.0])).iloc[0])
+            'wind_gust': float(df_sfc.get('gust', pd.Series([0.0])).iloc[0]),
+            'gfs_surface_hgt': float(df_sfc.get('orog', df_sfc.get('hgt', pd.Series([0.0]))).iloc[0])
         }
         
     except Exception as e:
@@ -130,59 +135,70 @@ def fetch_data(lat: float, lon: float, forecast_hours=24, park_id: str = "unknow
     print(f"Initializing NOAA NOMADS GFS access for lat: {lat}, lon: {lon}")
     
     try:
-        date_str, cycle_str = get_latest_nomads_cycle(lat, lon)
-        print(f"Using Latest Available Cycle: Date {date_str}, Cycle {cycle_str}z")
+        try:
+            date_str, cycle_str = get_latest_nomads_cycle(lat, lon)
+            print(f"Using Latest Available Cycle: Date {date_str}, Cycle {cycle_str}z")
+        except Exception as e:
+            raise RuntimeError(f"get_latest_nomads_cycle failed: {e}")
+        
+        # All temp GRIB files go into a per-park subdirectory — keeps root clean
+        tmp_dir = os.path.join("data", "01_raw", "live_forecasts", park_id, "tmp")
+        os.makedirs(tmp_dir, exist_ok=True)
+        
+        # Download in parallel
+        print(f"Downloading {forecast_hours} hours of forecasting data from NOAA servers...")
+        downloaded_files = {}
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {
+                executor.submit(download_grib, h, date_str, cycle_str, lat, lon, tmp_dir): h 
+                for h in range(forecast_hours + 1)
+            }
+            
+            for future in concurrent.futures.as_completed(futures):
+                hour = futures[future]
+                try:
+                    tmp_filename = future.result()
+                    if tmp_filename:
+                        downloaded_files[hour] = tmp_filename
+                except Exception as e:
+                    print(f"Download thread failed for hour {hour}: {e}")
+                    
+        # Parse sequentially
+        print("Parsing downloaded GRIB files...")
+        rows = []
+        for h in sorted(downloaded_files.keys()):
+            row = parse_grib(downloaded_files[h], h)
+            if row:
+                rows.append(row)
+        
+        # Cleanup the now-empty tmp dir
+        try:
+            os.rmdir(tmp_dir)
+        except OSError:
+            pass  # Not empty — leave it, stale files can be inspected
+        
+        # We need at least some forecast data to proceed, let's say at least 12 hours
+        if len(rows) < 12:
+            raise RuntimeError(f"Insufficient GRIB files successfully downloaded/parsed: got {len(rows)}/25")
+                    
+        df = pd.DataFrame(rows)
+        df.sort_values('time', inplace=True)
+        df.reset_index(drop=True, inplace=True)
+        
+        # Save the parsed forecast as a dated CSV in the park's live_forecasts folder
+        out_dir = os.path.join("data", "01_raw", "live_forecasts", park_id)
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, f"gfs_forecast_{date_str}.csv")
+        df.to_csv(out_path, index=False)
+        print(f"Live forecast saved -> {out_path}")
+        
+        print("Data successfully fetched from NOAA Primary Operational Access!")
+        return df
+        
     except Exception as e:
-        print(f"NOAA NOMADS Primary Access Failed: {e}")
+        print(f"NOAA NOMADS Primary Access or parsing failed: {e}")
         print("Switching to Emergency Fallback: Open-Meteo Global GFS...")
         return fetch_open_meteo_fallback(lat, lon, park_id)
-    
-    # All temp GRIB files go into a per-park subdirectory — keeps root clean
-    tmp_dir = os.path.join("data", "01_raw", "live_forecasts", park_id, "tmp")
-    os.makedirs(tmp_dir, exist_ok=True)
-    
-    # Download in parallel
-    print(f"Downloading {forecast_hours} hours of forecasting data from NOAA servers...")
-    downloaded_files = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        futures = {
-            executor.submit(download_grib, h, date_str, cycle_str, lat, lon, tmp_dir): h 
-            for h in range(forecast_hours + 1)
-        }
-        
-        for future in concurrent.futures.as_completed(futures):
-            hour = futures[future]
-            tmp_filename = future.result()
-            if tmp_filename:
-                downloaded_files[hour] = tmp_filename
-                
-    # Parse sequentially
-    print("Parsing downloaded GRIB files...")
-    rows = []
-    for h in sorted(downloaded_files.keys()):
-        row = parse_grib(downloaded_files[h], h)
-        if row:
-            rows.append(row)
-    
-    # Cleanup the now-empty tmp dir
-    try:
-        os.rmdir(tmp_dir)
-    except OSError:
-        pass  # Not empty — leave it, stale files can be inspected
-                
-    df = pd.DataFrame(rows)
-    df.sort_values('time', inplace=True)
-    df.reset_index(drop=True, inplace=True)
-    
-    # Save the parsed forecast as a dated CSV in the park's live_forecasts folder
-    out_dir = os.path.join("data", "01_raw", "live_forecasts", park_id)
-    os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, f"gfs_forecast_{date_str}.csv")
-    df.to_csv(out_path, index=False)
-    print(f"Live forecast saved -> {out_path}")
-    
-    print("Data successfully fetched from NOAA Primary Operational Access!")
-    return df
 
 def fetch_open_meteo_fallback(lat, lon, park_id):
     """
